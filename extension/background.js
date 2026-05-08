@@ -243,8 +243,8 @@ chrome.storage.onChanged.addListener((changes, area) => {
       const uid = data.authUser?.uid;
 
       // 1. Sync to Website Tabs (Local)
-      chrome.tabs.query(
-        { url: ["*://localhost/*", "*://focus-shield.vercel.app/*"] },
+    chrome.tabs.query(
+        { url: ["*://localhost/*", "*://focusshield.vercel.app/*"] },
         (tabs) => {
           tabs.forEach((tab) => {
             chrome.scripting
