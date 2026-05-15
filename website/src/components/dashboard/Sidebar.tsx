@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { usePasswordPrompt } from "../../lib/PasswordPromptContext";
 
 interface SidebarProps {
@@ -41,6 +41,19 @@ export default function Sidebar({
   signOutUser,
 }: SidebarProps) {
   const { requirePassword } = usePasswordPrompt();
+  const [isExpanded, setIsExpanded] = useState(false);
+  const profileRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (profileRef.current && !profileRef.current.contains(event.target as Node)) {
+        setIsExpanded(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   const handleBlockingToggle = (enabled: boolean) => {
     // If turning OFF, require password. If turning ON, it's fine.
@@ -165,25 +178,41 @@ export default function Sidebar({
       )}
 
       {featureFlags?.profileSection !== false && (
-        <div className="sidebar-profile">
+        <div className="sidebar-profile" ref={profileRef}>
           <div className="nav-divider"></div>
-          <div className="profile-container">
-            {user?.photoBase64 || user?.photoURL ? (
-              <img
-                src={user.photoBase64 || user.photoURL || ""}
-                alt={user.displayName || "User"}
-                className="profile-img"
-              />
-            ) : (
-              <div className="profile-initial">{userInitial}</div>
-            )}
-            <div className="profile-info">
-              <span className="profile-name">{user?.displayName || "User"}</span>
-              <span className="profile-email">{user?.email}</span>
-              <button onClick={signOutUser} className="profile-logout">
-                <i className="fas fa-sign-out-alt"></i> Sign Out
-              </button>
+          <div 
+            className={`profile-container ${isExpanded ? "expanded" : ""}`}
+            onClick={() => setIsExpanded(!isExpanded)}
+          >
+            <div className="profile-main">
+              {user?.photoBase64 || user?.photoURL ? (
+                <img
+                  src={user.photoBase64 || user.photoURL || ""}
+                  alt={user.displayName || "User"}
+                  className="profile-img"
+                />
+              ) : (
+                <div className="profile-initial">{userInitial}</div>
+              )}
+              <div className="profile-info">
+                <span className="profile-name">{user?.displayName || "User"}</span>
+              </div>
+              <i className="fas fa-chevron-down expand-chevron"></i>
             </div>
+            
+            {isExpanded && (
+              <div className="profile-actions">
+                <button 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    signOutUser();
+                  }} 
+                  className="profile-logout"
+                >
+                  <i className="fas fa-sign-out-alt"></i> Sign Out
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -195,12 +224,24 @@ export default function Sidebar({
         }
         .profile-container {
           display: flex;
-          align-items: flex-start;
-          gap: 12px;
+          flex-direction: column;
+          gap: 0;
           padding: 12px;
           background: var(--bg-hover);
           border-radius: 12px;
           border: 1px solid var(--border);
+          cursor: pointer;
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+          overflow: hidden;
+        }
+        .profile-container.expanded {
+          gap: 12px;
+        }
+        .profile-main {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          width: 100%;
         }
         .profile-img {
           width: 36px;
@@ -224,8 +265,9 @@ export default function Sidebar({
         .profile-info {
           display: flex;
           flex-direction: column;
-          gap: 2px;
+          gap: 0;
           overflow: hidden;
+          flex: 1;
         }
         .profile-name {
           font-size: 14px;
@@ -235,31 +277,42 @@ export default function Sidebar({
           overflow: hidden;
           text-overflow: ellipsis;
         }
-        .profile-email {
-          font-size: 11px;
+        .expand-chevron {
+          font-size: 10px;
           color: var(--text-muted);
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
+          opacity: 0.5;
+          transition: all 0.3s;
+        }
+        .expanded .expand-chevron {
+          opacity: 0.8;
+          transform: rotate(180deg);
+        }
+        .profile-actions {
+          width: 100%;
+          animation: slideDown 0.3s ease-out;
+        }
+        @keyframes slideDown {
+          from { opacity: 0; transform: translateY(-10px); }
+          to { opacity: 1; transform: translateY(0); }
         }
         .profile-logout {
-          margin-top: 8px;
-          background: none;
+          width: 100%;
+          background: var(--bg-card);
           border: 1px solid var(--border);
-          border-radius: 6px;
-          padding: 4px 8px;
-          font-size: 11px;
+          border-radius: 8px;
+          padding: 6px 12px;
+          font-size: 12px;
           font-weight: 600;
           color: var(--text-muted);
           cursor: pointer;
           display: flex;
           align-items: center;
-          gap: 6px;
-          width: fit-content;
+          justify-content: center;
+          gap: 8px;
           transition: all 0.2s;
         }
         .profile-logout:hover {
-          background: var(--bg-card);
+          background: var(--bg-hover);
           color: var(--danger);
           border-color: var(--danger);
         }
