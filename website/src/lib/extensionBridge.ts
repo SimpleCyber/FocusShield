@@ -189,11 +189,17 @@ export function openExtensionSettings(): void {
   }, "*");
 }
 
+export interface ChecklistItem {
+  id: string;
+  text: string;
+}
+
 export interface CustomBlockPage {
   mode: 'default' | 'custom';
   imageUrl: string;
   header: string;
   subtitle: string;
+  checklist: ChecklistItem[];
   version: number;
 }
 
@@ -231,6 +237,7 @@ export const DEFAULTS = {
     imageUrl: '',
     header: '',
     subtitle: '',
+    checklist: [] as ChecklistItem[],
     version: 0,
   } as CustomBlockPage,
   duration: 60,

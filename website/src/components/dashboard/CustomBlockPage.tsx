@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useCallback, useEffect } from "react";
 import { useFocusData } from "../../lib/FocusDataContext";
+import { ChecklistItem } from "../../lib/extensionBridge";
 
 interface CustomBlockPageProps {
   isAdminUnlocked: boolean;
@@ -29,6 +30,10 @@ export default function CustomBlockPage({
   const [saved, setSaved] = useState(false);
   const [localPreview, setLocalPreview] = useState(""); // For instant preview before upload completes
   const [isEditing, setIsEditing] = useState(false);
+  const [checklist, setChecklist] = useState<ChecklistItem[]>(
+    data.customBlockPage?.checklist || [],
+  );
+  const [newChecklistItem, setNewChecklistItem] = useState("");
 
   // Sync from context only on mount to prevent real-time Firestore updates from interfering with typing
   useEffect(() => {
@@ -37,6 +42,7 @@ export default function CustomBlockPage({
       setImageUrl(data.customBlockPage.imageUrl || "");
       setHeader(data.customBlockPage.header || "");
       setSubtitle(data.customBlockPage.subtitle || "");
+      setChecklist(data.customBlockPage.checklist || []);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -105,6 +111,7 @@ export default function CustomBlockPage({
         imageUrl,
         header,
         subtitle,
+        checklist,
         version: currentVersion + 1,
       },
     });
@@ -122,7 +129,22 @@ export default function CustomBlockPage({
     mode !== (data.customBlockPage?.mode || "default") ||
     imageUrl !== (data.customBlockPage?.imageUrl || "") ||
     header !== (data.customBlockPage?.header || "") ||
-    subtitle !== (data.customBlockPage?.subtitle || "");
+    subtitle !== (data.customBlockPage?.subtitle || "") ||
+    JSON.stringify(checklist) !== JSON.stringify(data.customBlockPage?.checklist || []);
+
+  const addChecklistItem = () => {
+    const text = newChecklistItem.trim();
+    if (!text || checklist.length >= 5) return;
+    setChecklist([
+      ...checklist,
+      { id: Date.now().toString(), text },
+    ]);
+    setNewChecklistItem("");
+  };
+
+  const removeChecklistItem = (id: string) => {
+    setChecklist(checklist.filter((item) => item.id !== id));
+  };
 
   // Locked state for non-premium
   if (!isAdminUnlocked) {
@@ -364,6 +386,129 @@ export default function CustomBlockPage({
           font-weight: 400;
         }
 
+        /* Inline Checklist in Preview */
+        .cbp-preview-checklist {
+          margin-top: 16px;
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+          padding: 12px;
+          margin-left: -12px;
+          border: 1px dashed transparent;
+          border-radius: 12px;
+          transition: all 0.2s;
+          outline: none;
+          cursor: pointer;
+        }
+
+        .cbp-preview-checklist:hover {
+          background: rgba(0, 0, 0, 0.4);
+          border-color: var(--primary);
+        }
+
+        .cbp-preview-checklist-title {
+          font-size: 9px;
+          text-transform: uppercase;
+          letter-spacing: 2px;
+          color: #f59e0b;
+          font-weight: 700;
+          margin-bottom: 2px;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+        }
+
+        .cbp-preview-checklist-count {
+          font-size: 9px;
+          color: rgba(255,255,255,0.4);
+          letter-spacing: 0;
+          text-transform: none;
+        }
+
+        .cbp-preview-cl-item {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          padding: 5px 0;
+          background: transparent;
+          border: none;
+          font-size: 10px;
+          color: rgba(255,255,255,0.85);
+          font-weight: 500;
+        }
+
+        .cbp-preview-cl-check {
+          width: 14px;
+          height: 14px;
+          border-radius: 4px;
+          border: 1.5px solid rgba(255,255,255,0.3);
+          flex-shrink: 0;
+        }
+
+        .cbp-preview-cl-remove {
+          margin-left: auto;
+          background: none;
+          border: none;
+          color: rgba(255,255,255,0.3);
+          cursor: pointer;
+          font-size: 9px;
+          padding: 2px 4px;
+          border-radius: 4px;
+          transition: all 0.15s;
+          display: flex;
+          align-items: center;
+        }
+
+        .cbp-preview-cl-remove:hover {
+          color: #ef4444;
+          background: rgba(239,68,68,0.15);
+        }
+
+        .cbp-preview-cl-add {
+          display: flex;
+          gap: 4px;
+          margin-top: 2px;
+        }
+
+        .cbp-preview-cl-add input {
+          flex: 1;
+          background: rgba(255,255,255,0.06);
+          border: 1px solid rgba(255,255,255,0.1);
+          border-radius: 6px;
+          padding: 5px 8px;
+          color: #fff;
+          font-size: 10px;
+          font-family: inherit;
+          outline: none;
+          transition: border-color 0.2s;
+        }
+
+        .cbp-preview-cl-add input:focus {
+          border-color: #6366f1;
+        }
+
+        .cbp-preview-cl-add input::placeholder {
+          color: rgba(255,255,255,0.35);
+        }
+
+        .cbp-preview-cl-add button {
+          background: #6366f1;
+          border: none;
+          color: white;
+          padding: 5px 10px;
+          border-radius: 6px;
+          font-size: 9px;
+          font-weight: 600;
+          cursor: pointer;
+          font-family: inherit;
+          transition: opacity 0.2s;
+        }
+
+        .cbp-preview-cl-add button:disabled {
+          opacity: 0.4;
+          cursor: not-allowed;
+        }
+
         .cbp-preview-left.editable:hover .cbp-upload-btn {
           opacity: 1;
           transform: translateY(0);
@@ -517,6 +662,7 @@ export default function CustomBlockPage({
                       imageUrl,
                       header,
                       subtitle,
+                      checklist,
                       version: currentVersion + 1,
                     },
                   });
@@ -647,6 +793,45 @@ export default function CustomBlockPage({
                     onChange={(e) => setSubtitle(e.target.value.slice(0, 150))}
                     placeholder="Enter subtitle message..."
                   />
+
+                  {/* Inline Checklist */}
+                  <div 
+                    className="cbp-preview-checklist"
+                    onClick={() => setIsEditing(true)}
+                  >
+                    {checklist.map((item) => (
+                      <div key={item.id} className="cbp-preview-cl-item">
+                        <div className="cbp-preview-cl-check" />
+                        <span>{item.text}</span>
+                        {isEditing && (
+                          <button
+                            className="cbp-preview-cl-remove"
+                            onClick={() => removeChecklistItem(item.id)}
+                            title="Remove"
+                          >
+                            <i className="fas fa-times" />
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                    {isEditing && checklist.length < 5 && (
+                      <div className="cbp-preview-cl-add">
+                        <input
+                          type="text"
+                          value={newChecklistItem}
+                          onChange={(e) => setNewChecklistItem(e.target.value.slice(0, 60))}
+                          onKeyDown={(e) => { if (e.key === "Enter") addChecklistItem(); }}
+                          placeholder="Add a task..."
+                        />
+                        <button
+                          onClick={addChecklistItem}
+                          disabled={!newChecklistItem.trim()}
+                        >
+                          <i className="fas fa-plus" style={{ marginRight: 3 }} /> Add
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </>
               )}
             </div>
@@ -679,6 +864,7 @@ export default function CustomBlockPage({
             <div className="cbp-mock-label">seconds left</div>
           </div>
         </div>
+
 
         {/* ── Save Bar ── */}
         <div className="cbp-save-bar">

@@ -12,6 +12,7 @@ const DEFAULTS = {
     imageUrl: '',
     header: '',
     subtitle: '',
+    checklist: [],
     version: 0
   },
   focusSession: { active: false, paused: false, endTime: 0, startTime: 0 },
@@ -296,6 +297,72 @@ function createSandglassTimer(blockData = {}, settings = {}) {
       line-height: 1.5;
       font-weight: 400;
       word-break: break-word;
+    }
+
+    /* Daily Checklist Styles */
+    .cbp-checklist {
+      margin-top: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .cbp-checklist-title {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: var(--accent);
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .cbp-checklist-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 0;
+      background: transparent;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      border: none;
+    }
+
+    .cbp-checklist-item:hover {
+      background: rgba(255, 255, 255, 0.12);
+      border-color: rgba(255, 255, 255, 0.1);
+    }
+
+    .cbp-checklist-checkbox {
+      width: 20px;
+      height: 20px;
+      border-radius: 6px;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: all 0.2s ease;
+      font-size: 10px;
+      color: transparent;
+    }
+
+    .cbp-checklist-item.checked .cbp-checklist-checkbox {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: #fff;
+      box-shadow: 0 0 12px var(--primary-glow);
+    }
+
+    .cbp-checklist-text {
+      font-size: 14px;
+      color: rgba(255, 255, 255, 0.9);
+      font-weight: 500;
+      transition: all 0.2s ease;
+    }
+
+    .cbp-checklist-item.checked .cbp-checklist-text {
+      text-decoration: line-through;
+      color: rgba(255, 255, 255, 0.4);
     }
 
     .hourglass-container {
@@ -698,11 +765,25 @@ function createSandglassTimer(blockData = {}, settings = {}) {
   const cbp = settings.customBlockPage || {};
   const isCustomMode = cbp.mode === 'custom' && cbp.imageUrl;
 
+  const checklistItems = (cbp.checklist || []);
+  const checklistHTML = checklistItems.length > 0 ? `
+    <div class="cbp-checklist">
+      <div class="cbp-checklist-title">📋 Today's Goals</div>
+      ${checklistItems.map(item => `
+        <div class="cbp-checklist-item" data-checklist-id="${item.id}">
+          <div class="cbp-checklist-checkbox"><i class="fas fa-check"></i></div>
+          <span class="cbp-checklist-text">${item.text}</span>
+        </div>
+      `).join('')}
+    </div>
+  ` : '';
+
   const infoPanelHTML = isCustomMode ? `
     <div class="info-panel custom-mode" style="background-image: url('${cbp.imageUrl}')">
       <div class="custom-content">
         ${cbp.header ? `<div class="cbp-custom-header">${cbp.header}</div>` : ''}
         ${cbp.subtitle ? `<div class="cbp-custom-subtitle">${cbp.subtitle}</div>` : ''}
+        ${checklistHTML}
       </div>
     </div>
   ` : `
@@ -813,6 +894,44 @@ function createSandglassTimer(blockData = {}, settings = {}) {
     }
     
     updateQuote();
+  }
+
+  // Daily Checklist Logic (only in custom mode)
+  if (isCustomMode && checklistItems.length > 0) {
+    const today = new Date();
+    const dateKey = `checklist_${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+
+    // Load today's checked state
+    chrome.storage.local.get([dateKey], (result) => {
+      const checkedIds = result[dateKey] || [];
+      const items = container.querySelectorAll('.cbp-checklist-item');
+      items.forEach(item => {
+        const id = item.getAttribute('data-checklist-id');
+        if (checkedIds.includes(id)) {
+          item.classList.add('checked');
+        }
+      });
+    });
+
+    // Add click handlers
+    const items = container.querySelectorAll('.cbp-checklist-item');
+    items.forEach(item => {
+      item.addEventListener('click', () => {
+        const id = item.getAttribute('data-checklist-id');
+        item.classList.toggle('checked');
+
+        // Read current state and update
+        chrome.storage.local.get([dateKey], (result) => {
+          let checkedIds = result[dateKey] || [];
+          if (item.classList.contains('checked')) {
+            if (!checkedIds.includes(id)) checkedIds.push(id);
+          } else {
+            checkedIds = checkedIds.filter(cid => cid !== id);
+          }
+          chrome.storage.local.set({ [dateKey]: checkedIds });
+        });
+      });
+    });
   }
 
   // Settings UI Logic
@@ -1232,14 +1351,58 @@ function updateBlockPageUI(container, settings) {
   if (!infoPanel) return;
 
   if (isCustomMode) {
+    const checklistItems = (cbp.checklist || []);
+    const checklistHTML = checklistItems.length > 0 ? `
+      <div class="cbp-checklist">
+        <div class="cbp-checklist-title">📋 Today's Goals</div>
+        ${checklistItems.map(item => `
+          <div class="cbp-checklist-item" data-checklist-id="${item.id}">
+            <div class="cbp-checklist-checkbox"><i class="fas fa-check"></i></div>
+            <span class="cbp-checklist-text">${item.text}</span>
+          </div>
+        `).join('')}
+      </div>
+    ` : '';
+
     infoPanel.className = "info-panel custom-mode";
     infoPanel.style.backgroundImage = `url('${cbp.imageUrl}')`;
     infoPanel.innerHTML = `
       <div class="custom-content">
         ${cbp.header ? `<div class="cbp-custom-header">${cbp.header}</div>` : ''}
         ${cbp.subtitle ? `<div class="cbp-custom-subtitle">${cbp.subtitle}</div>` : ''}
+        ${checklistHTML}
       </div>
     `;
+
+    // Wire up checklist interactivity
+    if (checklistItems.length > 0) {
+      const today = new Date();
+      const dateKey = `checklist_${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+
+      chrome.storage.local.get([dateKey], (result) => {
+        const checkedIds = result[dateKey] || [];
+        infoPanel.querySelectorAll('.cbp-checklist-item').forEach(item => {
+          const id = item.getAttribute('data-checklist-id');
+          if (checkedIds.includes(id)) item.classList.add('checked');
+        });
+      });
+
+      infoPanel.querySelectorAll('.cbp-checklist-item').forEach(item => {
+        item.addEventListener('click', () => {
+          const id = item.getAttribute('data-checklist-id');
+          item.classList.toggle('checked');
+          chrome.storage.local.get([dateKey], (result) => {
+            let checkedIds = result[dateKey] || [];
+            if (item.classList.contains('checked')) {
+              if (!checkedIds.includes(id)) checkedIds.push(id);
+            } else {
+              checkedIds = checkedIds.filter(cid => cid !== id);
+            }
+            chrome.storage.local.set({ [dateKey]: checkedIds });
+          });
+        });
+      });
+    }
   } else {
     // Only rebuild if it currently has custom mode to prevent resetting tips/quotes
     if (!infoPanel.classList.contains('custom-mode')) return;
