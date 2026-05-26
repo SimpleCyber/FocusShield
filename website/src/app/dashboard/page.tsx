@@ -27,6 +27,7 @@ export default function DashboardPage() {
 
   const [activeView, setActiveView] = useState("view-block-sites");
   const [userPlan, setUserPlan] = useState<string>("free");
+  const [planLoading, setPlanLoading] = useState(true);
   const [extensionConnected, setExtensionConnected] = useState(true);
 
   // Feature Flags
@@ -69,6 +70,7 @@ export default function DashboardPage() {
     }
     
     try {
+      setPlanLoading(true);
       // 2. Load user plan from Firestore
       const userDoc = await getDoc(doc(db, "users", user.uid));
       if (userDoc.exists()) {
@@ -78,6 +80,8 @@ export default function DashboardPage() {
       setExtensionConnected(isExtensionAvailable());
     } catch (e) {
       console.error("Initialization failed", e);
+    } finally {
+      setPlanLoading(false);
     }
   }, [user]);
 
@@ -186,7 +190,7 @@ export default function DashboardPage() {
   };
 
   // Loading state
-  if (loading || !user || dataLoading) {
+  if (loading || !user || dataLoading || planLoading) {
     return (
       <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100vh", background: "var(--bg-main)" }}>
         <div style={{ width: "32px", height: "32px", border: "4px solid #e2e8f0", borderTopColor: "#4f46e5", borderRadius: "50%", animation: "spin 0.8s linear infinite" }}></div>

@@ -36,16 +36,24 @@ export default function CustomBlockPage({
   const [newChecklistItem, setNewChecklistItem] = useState("");
 
   // Sync from context only on mount to prevent real-time Firestore updates from interfering with typing
+  // Sync from context only when data arrives. 
+  // We use a ref to ensure we only auto-sync once once real data is available
+  const hasInitialized = useRef(false);
+
   useEffect(() => {
-    if (data.customBlockPage && mode === "default" && !header && !subtitle) {
-      setMode(data.customBlockPage.mode || "default");
-      setImageUrl(data.customBlockPage.imageUrl || "");
-      setHeader(data.customBlockPage.header || "");
-      setSubtitle(data.customBlockPage.subtitle || "");
-      setChecklist(data.customBlockPage.checklist || []);
+    const remote = data.customBlockPage;
+    if (!remote || hasInitialized.current) return;
+
+    // If remote data exists and has meaningful content, initialize our local state
+    if (remote.imageUrl || remote.header || remote.subtitle || (remote.checklist && remote.checklist.length > 0) || remote.mode === "custom") {
+      setMode(remote.mode || "default");
+      setImageUrl(remote.imageUrl || "");
+      setHeader(remote.header || "");
+      setSubtitle(remote.subtitle || "");
+      setChecklist(remote.checklist || []);
+      hasInitialized.current = true;
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [data.customBlockPage]);
 
   const handleImageUpload = useCallback(async (file: File) => {
     if (file.size > 3 * 1024 * 1024) {
