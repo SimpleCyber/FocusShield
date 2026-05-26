@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "FocusShield : Advanced Content & Distraction Blocker",
-  "version": "1.3.2",
+  "version": "1.3.3",
   "description": "Block YouTube Shorts, Instagram Reels, and distracting websites with a stunning hourglass focus experience.",
   "icons": {
     "48": "icon.png"
